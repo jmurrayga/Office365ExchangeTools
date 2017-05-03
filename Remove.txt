@@ -1,0 +1,11 @@
+﻿
+Remove
+  -> This command will remove remnants of attached accounts
+			
+	Remove Store - 
+	  Remove PST from Outlook Instance
+
+	Remove Account -
+	  <Not Implemented>
+
+  -> Exit

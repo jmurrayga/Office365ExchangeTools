@@ -1,0 +1,17 @@
+﻿
+Commands
+  -> Export
+	This command will start the Export PST wizard
+			
+	1. Connect a users mailbox to your outlook. This is usually specified via the mailbox users User Principal Name. (jdoe@contoso.com)
+	2. Specify a new PST file to be created. 
+	3. Specify date ranges for export.
+	4. Objects to be included/filtered/exlcuded.
+
+  -> Remove Store
+    This command will start the wizard to delete an attached store.
+
+  -> List
+    Display the Accounts and Stores attached to outlook
+
+  -> Exit

@@ -1,0 +1,7 @@
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\Office365ExchangeTools.exe.config
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\Office365ExchangeTools.exe
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\Office365ExchangeTools.pdb
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\Office365ExchangeTools.csprojResolveAssemblyReference.cache
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\Office365ExchangeTools.csproj.ResolveComReference.cache
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\Office365ExchangeTools.exe
+c:\users\jamur\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\Office365ExchangeTools.pdb
