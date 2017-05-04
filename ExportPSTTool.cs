@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Office.Interop.Outlook;
 using System.IO;
@@ -10,22 +11,27 @@ namespace Office365ExchangeTools
 {
     class ExportPSTTool
     {
-       private static OutlookApplication oa;
+        private static OutlookApplication oa;
 
         static void Main(string[] args)
         {
             //load Args into arghandler
             Args argHandler = new Args(args);
-
+            
             //opening Text, if this is stuck it failed to find the outlook application on the following line     
             Console.Write("Connecting to Outlook...");
             oa = new OutlookApplication();
-
+            
             //Outlook found, printing version
             Console.Write("Found Version " + oa.Version + "\r\n");
 
+            //List threading info
+            GetTheadInfo();
+
             //List Outlook account status
             oa.ListAccounts();
+
+            //Start console
             Console.WriteLine("type help for available commands.\r\n");
 
             //if their are arguements start the export process automatically
@@ -58,6 +64,12 @@ namespace Office365ExchangeTools
                         case "remove store":
                             oa.RemoveStore();
                             break;
+                        case "threadinfo":
+                            GetTheadInfo();
+                            break;
+                        case "setthreads":
+                            SetTheadInfo();
+                            break;
                         default:
                             break;
                     }
@@ -69,7 +81,68 @@ namespace Office365ExchangeTools
         {
             Console.WriteLine(Properties.Resources.ResourceManager.GetObject(helpfile));           
         }
+        static void GetTheadInfo()
+        {
+            //get threading settings
+            int minWorker;
+            int minIOC;
+            ThreadPool.GetMinThreads(out minWorker, out minIOC);
 
+            Console.WriteLine("Current Minimum Worker Threads are : " + minWorker);
+            Console.WriteLine("Current Minimum IO Completion: " + minIOC);
+        }
+        static void SetTheadInfo()
+        {
+            //get threading settings
+            int minWorker;
+            int minIOC;
+            int newMinWorker = -1;
+            int newMinIOC = -1;
+            ThreadPool.GetMinThreads(out minWorker, out minIOC);
+
+            while (newMinWorker == -1 || newMinIOC == -1)
+            {
+                Console.Write("\r\nSet New Minimum Worker Threads: ");
+                string strNewMinWorker = Console.ReadLine();
+
+                if (strNewMinWorker == "")
+                {
+                    newMinWorker = minWorker;
+                }
+                else
+                {
+                    int.TryParse(strNewMinWorker, out newMinWorker);
+                }
+
+                Console.Write("\r\nCurrent Minimum IO Completion: ");
+                string strNewMinIOC = Console.ReadLine();
+
+                if (strNewMinIOC == "")
+                {
+                    newMinIOC = minIOC;
+                }
+                else
+                {
+                    int.TryParse(strNewMinIOC, out newMinIOC);
+                }
+            }
+
+            try
+            {
+                ThreadPool.SetMinThreads(newMinWorker, newMinIOC);
+            }
+            catch(System.Exception e)
+            {
+                Console.WriteLine("The minimum number of threads was not changed.");
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                Console.WriteLine("Current Minimum Worker Threads are : " + minWorker);
+                Console.WriteLine("Current Minimum IO Completion: " + minIOC);
+                
+            }
+        }
     }
 
     class OutlookApplication
@@ -442,6 +515,8 @@ namespace Office365ExchangeTools
 
                         _currentTasks.Add(Task.Run(async () =>
                             {
+                                await Task.Yield();
+
                                 await BackupItems((Folder)newbackupfolder, folder, exportOptions);
                             })
                         );
@@ -456,14 +531,16 @@ namespace Office365ExchangeTools
                 
             }
 
+            Task.WaitAll(_currentTasks.ToArray<Task>());
+
 
         }
         private async Task BackupItems(Folder backupFolder,Folder folder, ExportOptions exportOptions)
         {
-           
-            foreach(object item in folder.Items)
-            {
+            await Task.Yield();
 
+            foreach (object item in folder.Items)
+            { 
                 _currentTasks.Add(Task.Run(async () =>
                     {
                         await CopyMove(item, backupFolder,exportOptions);
@@ -471,35 +548,45 @@ namespace Office365ExchangeTools
                 );
             }
 
-            await Task.Delay(1000);
         }
         private async Task CopyMove(object item, Folder backupFolder,ExportOptions exportOptions)
         {
+
+            await Task.Yield();
+            int trys = 0;
+            bool success = false;
+
             if (item is MailItem)
             {
-                try
+                while(trys > exportOptions.maxCopyMoveAttempts && success == false)
                 {
-                    MailItem mailItem = (MailItem)item;
-                    if ((exportOptions.mailItemFlag != ExportFlag.Exclude && Between(mailItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.mailItemFlag == ExportFlag.All)
+                    try
                     {
+                        MailItem mailItem = (MailItem)item;
+                        if ((exportOptions.mailItemFlag != ExportFlag.Exclude && Between(mailItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.mailItemFlag == ExportFlag.All)
+                        {
 
-                        //copy
-                        MailItem copiedMailItem = mailItem.Copy();
-                        copiedMailItem.Move(backupFolder);
+                            //copy
+                            MailItem copiedMailItem = mailItem.Copy();
+                            copiedMailItem.Move(backupFolder);
 
-                        //audit
-                        Console.WriteLine(backupFolder.FolderPath + "\t MailItem \t" + copiedMailItem.Subject + "\t" + copiedMailItem.ReceivedTime);
+                            //audit
+                            Console.WriteLine(backupFolder.FolderPath + "\t MailItem \t" + mailItem.Subject + "\t" + mailItem.ReceivedTime);
 
-                        //close items
-                        mailItem.Close(OlInspectorClose.olDiscard);
-                        copiedMailItem.Close(OlInspectorClose.olDiscard);
+
+                            //close items
+                            mailItem.Close(OlInspectorClose.olDiscard);
+                            copiedMailItem.Close(OlInspectorClose.olDiscard);
+                        }
+                        success = true;
+                    }
+                    catch (System.Exception e)
+                    {
+                        Console.WriteLine(e);
+                        trys++;
+                        success = false;
                     }
                 }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-
             }
             else if (item is AppointmentItem)
             {
@@ -534,12 +621,12 @@ namespace Office365ExchangeTools
                     {
                         //copy
                         ContactItem copiedContactItem = contactItem.Copy();
-
+                        //
                         copiedContactItem.Move(backupFolder);
 
                         //audit
                         Console.WriteLine("\t ContactItem \t" + copiedContactItem.LastName + ", " + copiedContactItem.FirstName);
-
+                        
                         //closeitems
                         contactItem.Close(OlInspectorClose.olDiscard);
                         copiedContactItem.Close(OlInspectorClose.olDiscard);
@@ -564,7 +651,7 @@ namespace Office365ExchangeTools
 
                         //audit 
                         Console.WriteLine(backupFolder.FolderPath + "\t MeetingItem \t" + copiedMeetingItem.Subject + "\t" + copiedMeetingItem.ReceivedTime);
-
+                        
                         //closeitems
                         meetingItem.Close(OlInspectorClose.olDiscard);
                         copiedMeetingItem.Close(OlInspectorClose.olDiscard);
@@ -590,7 +677,7 @@ namespace Office365ExchangeTools
 
                         //audit
                         Console.WriteLine(backupFolder.FolderPath + "\t TaskItem \t" + copiedtaskItem.Subject + "\t" + copiedtaskItem.CreationTime);
-
+                        
                         //closeitems
                         taskItem.Close(OlInspectorClose.olDiscard);
                         copiedtaskItem.Close(OlInspectorClose.olDiscard);
@@ -615,7 +702,7 @@ namespace Office365ExchangeTools
 
                         //audit
                         Console.WriteLine(backupFolder.FolderPath + "\t JournalItem \t" + copiedjournalItem.Subject + "\t" + copiedjournalItem.CreationTime);
-
+                        
                         //closeitems
                         journalItem.Close(OlInspectorClose.olDiscard);
                         copiedjournalItem.Close(OlInspectorClose.olDiscard);
@@ -641,7 +728,8 @@ namespace Office365ExchangeTools
                 }
             }
 
-            await Task.Delay(1000);
+            Console.WriteLine(_currentTasks.Where(task => task.IsCompleted != true).Count());
+
         }
         public void RemoveStore()
         {
@@ -769,6 +857,7 @@ namespace Office365ExchangeTools
         public ExportFlag taskItemFlag;
         public ExportFlag journalItemFlag;
         public ExportFlag otherItemFlag;
+        public int maxCopyMoveAttempts;
 
         public ExportOptions()
         {

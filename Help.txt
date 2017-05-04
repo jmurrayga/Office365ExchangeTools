@@ -11,6 +11,12 @@ Commands
   -> Remove Store
     This command will start the wizard to delete an attached store.
 
+  -> ThreadInfo
+    Lists threading information
+
+  -> SetThreads
+    Sets Threading values
+
   -> List
     Display the Accounts and Stores attached to outlook
 
