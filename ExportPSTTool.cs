@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Office.Interop.Outlook;
 using System.IO;
@@ -298,12 +299,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.mailItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Mail Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.mailItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.mailItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.mailItemFlag = setExportFlag(Args.ReturnArg("-mailItems"));
+                exportOptions.mailItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-mailItems"));
             }
 
             //Define the appointment item flags
@@ -313,12 +314,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.appointmentItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Appointment Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");                    
-                    exportOptions.appointmentItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.appointmentItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.appointmentItemFlag = setExportFlag(Args.ReturnArg("-appointmentItems"));
+                exportOptions.appointmentItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-appointmentItems"));
             }
 
             //Define the meeting item flags
@@ -327,12 +328,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.meetingItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Meeting Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.meetingItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.meetingItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.meetingItemFlag = setExportFlag(Args.ReturnArg("-meetingItems"));
+                exportOptions.meetingItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-meetingItems"));
             }
 
             //Define the contact item flags
@@ -341,12 +342,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.contactItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Contact Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.contactItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.contactItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.contactItemFlag = setExportFlag(Args.ReturnArg("-contactItems"));
+                exportOptions.contactItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-contactItems"));
             }
 
             //Define the contact item flags
@@ -355,12 +356,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.taskItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Task Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.taskItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.taskItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.taskItemFlag = setExportFlag(Args.ReturnArg("-taskItems"));
+                exportOptions.taskItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-taskItems"));
             }
 
             //Define the contact item flags
@@ -369,12 +370,12 @@ namespace Office365ExchangeTools
                 while (exportOptions.journalItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("Journal Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.journalItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.journalItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.journalItemFlag = setExportFlag(Args.ReturnArg("-taskItems"));
+                exportOptions.journalItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-taskItems"));
             }
 
             //Define the contact item flags
@@ -383,17 +384,18 @@ namespace Office365ExchangeTools
                 while (exportOptions.otherItemFlag == ExportFlag.NotSet)
                 {
                     Console.Write("All other Items - (F)ilter By Item Date Range. (E)xclude. (A)ll is default: ");
-                    exportOptions.otherItemFlag = setExportFlag(Console.ReadLine());
+                    exportOptions.otherItemFlag = ExportOptions.ReadExportFlag(Console.ReadLine());
                 }
             }
             else
             {
-                exportOptions.otherItemFlag = setExportFlag(Args.ReturnArg("-otherItems"));
+                exportOptions.otherItemFlag = ExportOptions.ReadExportFlag(Args.ReturnArg("-otherItems"));
             }
 
 
             Folder backupPSTRootFolder;
             //Add a new store in the pst path.
+
             try
             {
                 _nameSpace.Session.AddStoreEx(exportOptions.exportPSTPath.ToString(), OlStoreType.olStoreUnicode);
@@ -417,7 +419,12 @@ namespace Office365ExchangeTools
                             //need to find the user account amongst my own email folders
                             if (accountFolder.Name.Contains(recipient.Name))
                             {
-                                RecurseFolders(backupPSTRootFolder, accountFolder.Folders, exportOptions);
+                                string file = Path.GetDirectoryName(exportOptions.exportPSTPath.ToString());
+                                DirectoryInfo root = Directory.CreateDirectory(file + "\\" + recipient.Name);
+
+                                //RecurseFolders(backupPSTRootFolder, accountFolder.Folders, exportOptions, root);
+                                Console.WriteLine("Scheduling recursion of root folder " + accountFolder.FullFolderPath);
+                                RecurseFolders(backupPSTRootFolder, accountFolder.Folders, exportOptions, root);
                             }
                         }
                     }
@@ -428,7 +435,7 @@ namespace Office365ExchangeTools
 
             Console.WriteLine("Export Ended.");
         }
-        private void RecurseFolders(Folder backupFolder,Folders folders, ExportOptions exportOptions)
+        private async void RecurseFolders(Folder backupFolder,Folders folders, ExportOptions exportOptions, DirectoryInfo root)
         {
             foreach(Folder folder in backupFolder.Folders)
             {
@@ -447,16 +454,26 @@ namespace Office365ExchangeTools
             {
                 try
                 {
-                    if (!folder.IsSharePointFolder && 
-                        folder.Name != "Deleted Items" && 
-                        folder.Name != "Search Folders" && 
-                        folder.Name != "PersonMetadata" &&
-                        folder.Name != "Recipient Cache" &&
-                        folder.Name != "Sync Issues" &&
-                        folder.Name != "Yammer Root") 
+                    if (
+                        (!folder.IsSharePointFolder) &&
+                        (folder.Name != "Deleted Items" &&
+                         folder.Name != "Search Folders" &&
+                         folder.Name != "PersonMetadata" &&
+                         folder.Name != "Recipient Cache" &&
+                         folder.Name != "Sync Issues" &&
+                         folder.Name != "Yammer Root" &&
+                         folder.Name != "Junk Email" &&
+                         folder.Name != "Junk E-mail" &&
+                         folder.Name != "Clutter") &&
+                        (folder.Name == "Calendar" && exportOptions.meetingItemFlag != ExportFlag.Exclude) ||
+                        (folder.Name == "Calendar" && exportOptions.appointmentItemFlag != ExportFlag.Exclude) ||
+                        (folder.Name == "Journal" && exportOptions.journalItemFlag != ExportFlag.Exclude) ||
+                        (folder.Name == "Inbox" && exportOptions.mailItemFlag != ExportFlag.Exclude) ||
+                        (folder.Name == "Tasks" && exportOptions.taskItemFlag != ExportFlag.Exclude)
+                       )
                     {
                         MAPIFolder newbackupfolder;
-
+                        
                         switch (folder.DefaultMessageClass)
                         {
                             case "IPM.Appointment":
@@ -506,21 +523,23 @@ namespace Office365ExchangeTools
                                         break;
                                 }                                
                                 break;
-
+                        
                         }
-                                               
-                        //folder.CopyTo(newbackupfolder);
 
-                        RecurseFolders((Folder)newbackupfolder, folder.Folders, exportOptions);
+                        root = Directory.CreateDirectory(root.FullName + "\\" + folder.Name);
+
+                        Console.WriteLine("Scheduling recursion of folder " + folder.FullFolderPath);
+                        RecurseFolders((Folder)newbackupfolder, folder.Folders, exportOptions, root);
 
                         _currentTasks.Add(Task.Run(async () =>
                             {
-                                await Task.Yield();
-
-                                await BackupItems((Folder)newbackupfolder, folder, exportOptions);
+                                Console.WriteLine("Scheduling backup of folder " + newbackupfolder.FullFolderPath);
+                                await BackupItems((Folder)newbackupfolder, folder, exportOptions,root);
                             })
                         );
-                        
+
+                        //BackupItems((Folder)newbackupfolder, folder, exportOptions, root);
+
                     }
                                        
                 }
@@ -535,201 +554,208 @@ namespace Office365ExchangeTools
 
 
         }
-        private async Task BackupItems(Folder backupFolder,Folder folder, ExportOptions exportOptions)
+        private async Task BackupItems(Folder backupFolder,Folder folder, ExportOptions exportOptions, DirectoryInfo root)
         {
             await Task.Yield();
 
+            int i = 1;
             foreach (object item in folder.Items)
-            { 
+            {
+
                 _currentTasks.Add(Task.Run(async () =>
                     {
-                        await CopyMove(item, backupFolder,exportOptions);
+                        Console.WriteLine("Scheduling CopyMove on " + backupFolder.FullFolderPath + " Item # " + i);
+                        await CopyMove(item, backupFolder, exportOptions, root);
+                        Marshal.ReleaseComObject(item);  //cannot set to null before this call
+                        Marshal.FinalReleaseComObject(item);
                     })
                 );
+                
+                i++;
             }
+
+            
 
         }
-        private async Task CopyMove(object item, Folder backupFolder,ExportOptions exportOptions)
+        private async Task CopyMove(object item, Folder backupFolder,ExportOptions exportOptions, DirectoryInfo root)
         {
-
             await Task.Yield();
-            int trys = 0;
-            bool success = false;
-
             if (item is MailItem)
             {
-                while(trys > exportOptions.maxCopyMoveAttempts && success == false)
-                {
-                    try
-                    {
-                        MailItem mailItem = (MailItem)item;
-                        if ((exportOptions.mailItemFlag != ExportFlag.Exclude && Between(mailItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.mailItemFlag == ExportFlag.All)
-                        {
-
-                            //copy
-                            MailItem copiedMailItem = mailItem.Copy();
-                            copiedMailItem.Move(backupFolder);
-
-                            //audit
-                            Console.WriteLine(backupFolder.FolderPath + "\t MailItem \t" + mailItem.Subject + "\t" + mailItem.ReceivedTime);
-
-
-                            //close items
-                            mailItem.Close(OlInspectorClose.olDiscard);
-                            copiedMailItem.Close(OlInspectorClose.olDiscard);
-                        }
-                        success = true;
-                    }
-                    catch (System.Exception e)
-                    {
-                        Console.WriteLine(e);
-                        trys++;
-                        success = false;
-                    }
-                }
-            }
-            else if (item is AppointmentItem)
-            {
                 try
                 {
-                    AppointmentItem appointmentItem = (AppointmentItem)item;
-
-                    if ((exportOptions.appointmentItemFlag != ExportFlag.Exclude && Between(appointmentItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.appointmentItemFlag == ExportFlag.All)
+                    MailItem mailItem = (MailItem)item;
+                    if (
+                           (exportOptions.mailItemFlag == ExportFlag.All) ||
+                           (exportOptions.mailItemFlag != ExportFlag.Exclude) ||
+                           (exportOptions.mailItemFlag == ExportFlag.Filter && Between(mailItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd))
+                       )
                     {
-                        //copy
-                        appointmentItem.CopyTo((MAPIFolder)backupFolder, OlAppointmentCopyOptions.olCreateAppointment);
-
-                        //audit
-                        Console.WriteLine(backupFolder.FolderPath + "\t AppointmentItem \t" + appointmentItem.Subject + "\t" + appointmentItem.StartUTC);
-
-                        //closeitems
-                        appointmentItem.Close(OlInspectorClose.olDiscard);
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
-            else if (item is ContactItem)
-            {
-                try
-                {
-                    ContactItem contactItem = (ContactItem)item;
-
-                    if ((exportOptions.contactItemFlag != ExportFlag.Exclude && Between(contactItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.contactItemFlag == ExportFlag.All)
-                    {
-                        //copy
-                        ContactItem copiedContactItem = contactItem.Copy();
+                        ////copy
+                        //MailItem copiedMailItem = mailItem.Copy();
+                        //copiedMailItem.Move(backupFolder);
                         //
-                        copiedContactItem.Move(backupFolder);
+                        ////audit
+                        //Console.WriteLine(backupFolder.FolderPath + "\t MailItem \t" + mailItem.Subject + "\t" + mailItem.ReceivedTime);
+                        //
+                        //
+                        ////close items
+                        //mailItem.Close(OlInspectorClose.olDiscard);
+                        //copiedMailItem.Close(OlInspectorClose.olDiscard);
 
-                        //audit
-                        Console.WriteLine("\t ContactItem \t" + copiedContactItem.LastName + ", " + copiedContactItem.FirstName);
-                        
-                        //closeitems
-                        contactItem.Close(OlInspectorClose.olDiscard);
-                        copiedContactItem.Close(OlInspectorClose.olDiscard);
+                        mailItem.SaveAs(root.FullName + "\\" + mailItem.EntryID + ".msg", OlSaveAsType.olMSGUnicode);
+                        mailItem.Close(OlInspectorClose.olDiscard);
+
+                        Marshal.ReleaseComObject(mailItem);  //cannot set to null before this call
+                        Marshal.FinalReleaseComObject(mailItem);
+
                     }
+                   
                 }
                 catch (System.Exception e)
                 {
                     Console.WriteLine(e);
                 }
             }
-            else if (item is MeetingItem)
-            {
-                try
-                {
-                    MeetingItem meetingItem = (MeetingItem)item;
-
-                    if ((exportOptions.meetingItemFlag != ExportFlag.Exclude && Between(meetingItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.meetingItemFlag == ExportFlag.All)
-                    {
-                        //copy
-                        MeetingItem copiedMeetingItem = meetingItem.Copy();
-                        copiedMeetingItem.Move(backupFolder);
-
-                        //audit 
-                        Console.WriteLine(backupFolder.FolderPath + "\t MeetingItem \t" + copiedMeetingItem.Subject + "\t" + copiedMeetingItem.ReceivedTime);
-                        
-                        //closeitems
-                        meetingItem.Close(OlInspectorClose.olDiscard);
-                        copiedMeetingItem.Close(OlInspectorClose.olDiscard);
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
-            else if (item is TaskItem)
-            {
-                try
-                {
-                    TaskItem taskItem = (TaskItem)item;
-
-                    if ((exportOptions.taskItemFlag != ExportFlag.Exclude && Between(taskItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.taskItemFlag == ExportFlag.All)
-                    {
-
-                        //copy
-                        TaskItem copiedtaskItem = taskItem.Copy();
-                        copiedtaskItem.Move(backupFolder);
-
-                        //audit
-                        Console.WriteLine(backupFolder.FolderPath + "\t TaskItem \t" + copiedtaskItem.Subject + "\t" + copiedtaskItem.CreationTime);
-                        
-                        //closeitems
-                        taskItem.Close(OlInspectorClose.olDiscard);
-                        copiedtaskItem.Close(OlInspectorClose.olDiscard);
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
-            else if (item is JournalItem)
-            {
-                try
-                {
-                    JournalItem journalItem = (JournalItem)item;
-
-                    if ((exportOptions.journalItemFlag != ExportFlag.Exclude && Between(journalItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.journalItemFlag == ExportFlag.All)
-                    {
-                        //copy
-                        JournalItem copiedjournalItem = journalItem.Copy();
-                        copiedjournalItem.Move(backupFolder);
-
-                        //audit
-                        Console.WriteLine(backupFolder.FolderPath + "\t JournalItem \t" + copiedjournalItem.Subject + "\t" + copiedjournalItem.CreationTime);
-                        
-                        //closeitems
-                        journalItem.Close(OlInspectorClose.olDiscard);
-                        copiedjournalItem.Close(OlInspectorClose.olDiscard);
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
-            else
-            {
-                try
-                {
-                    if (exportOptions.otherItemFlag == ExportFlag.All)
-                    {
-                        Console.WriteLine("Couldn't Identify mail item at " + backupFolder.FolderPath);                  
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Console.WriteLine(e);
-                }
-            }
-
-            Console.WriteLine(_currentTasks.Where(task => task.IsCompleted != true).Count());
-
+            //else if (item is AppointmentItem)
+            //{
+            //    try
+            //    {
+            //        AppointmentItem appointmentItem = (AppointmentItem)item;
+            //
+            //        if ((exportOptions.appointmentItemFlag != ExportFlag.Exclude && Between(appointmentItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.appointmentItemFlag == ExportFlag.All)
+            //        {
+            //            //copy
+            //            appointmentItem.CopyTo((MAPIFolder)backupFolder, OlAppointmentCopyOptions.olCreateAppointment);
+            //
+            //            //audit
+            //            Console.WriteLine(backupFolder.FolderPath + "\t AppointmentItem \t" + appointmentItem.Subject + "\t" + appointmentItem.StartUTC);
+            //
+            //            //closeitems
+            //            appointmentItem.Close(OlInspectorClose.olDiscard);
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            //else if (item is ContactItem)
+            //{
+            //    try
+            //    {
+            //        ContactItem contactItem = (ContactItem)item;
+            //
+            //        if ((exportOptions.contactItemFlag != ExportFlag.Exclude && Between(contactItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.contactItemFlag == ExportFlag.All)
+            //        {
+            //            //copy
+            //            ContactItem copiedContactItem = contactItem.Copy();
+            //            copiedContactItem.Move(backupFolder);
+            //
+            //            //audit
+            //            Console.WriteLine("\t ContactItem \t" + copiedContactItem.LastName + ", " + copiedContactItem.FirstName);
+            //            
+            //            //closeitems
+            //            contactItem.Close(OlInspectorClose.olDiscard);
+            //            copiedContactItem.Close(OlInspectorClose.olDiscard);
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            //else if (item is MeetingItem)
+            //{
+            //    try
+            //    {
+            //        MeetingItem meetingItem = (MeetingItem)item;
+            //
+            //        if ((exportOptions.meetingItemFlag != ExportFlag.Exclude && Between(meetingItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.meetingItemFlag == ExportFlag.All)
+            //        {
+            //            //copy
+            //            MeetingItem copiedMeetingItem = meetingItem.Copy();
+            //            copiedMeetingItem.Move(backupFolder);
+            //
+            //            //audit 
+            //            Console.WriteLine(backupFolder.FolderPath + "\t MeetingItem \t" + copiedMeetingItem.Subject + "\t" + copiedMeetingItem.ReceivedTime);
+            //            
+            //            //closeitems
+            //            meetingItem.Close(OlInspectorClose.olDiscard);
+            //            copiedMeetingItem.Close(OlInspectorClose.olDiscard);
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            //else if (item is TaskItem)
+            //{
+            //    try
+            //    {
+            //        TaskItem taskItem = (TaskItem)item;
+            //
+            //        if ((exportOptions.taskItemFlag != ExportFlag.Exclude && Between(taskItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.taskItemFlag == ExportFlag.All)
+            //        {
+            //
+            //            //copy
+            //            TaskItem copiedtaskItem = taskItem.Copy();
+            //            copiedtaskItem.Move(backupFolder);
+            //
+            //            //audit
+            //            Console.WriteLine(backupFolder.FolderPath + "\t TaskItem \t" + copiedtaskItem.Subject + "\t" + copiedtaskItem.CreationTime);
+            //            
+            //            //closeitems
+            //            taskItem.Close(OlInspectorClose.olDiscard);
+            //            copiedtaskItem.Close(OlInspectorClose.olDiscard);
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            //else if (item is JournalItem)
+            //{
+            //    try
+            //    {
+            //        JournalItem journalItem = (JournalItem)item;
+            //
+            //        if ((exportOptions.journalItemFlag != ExportFlag.Exclude && Between(journalItem.CreationTime, exportOptions.exportStart, exportOptions.exportEnd)) || exportOptions.journalItemFlag == ExportFlag.All)
+            //        {
+            //            //copy
+            //            JournalItem copiedjournalItem = journalItem.Copy();
+            //            copiedjournalItem.Move(backupFolder);
+            //
+            //            //audit
+            //            Console.WriteLine(backupFolder.FolderPath + "\t JournalItem \t" + copiedjournalItem.Subject + "\t" + copiedjournalItem.CreationTime);
+            //            
+            //            //closeitems
+            //            journalItem.Close(OlInspectorClose.olDiscard);
+            //            copiedjournalItem.Close(OlInspectorClose.olDiscard);
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            //else
+            //{
+            //    try
+            //    {
+            //        if (exportOptions.otherItemFlag == ExportFlag.All)
+            //        {
+            //            Console.WriteLine("Couldn't Identify mail item at " + backupFolder.FolderPath);                  
+            //        }
+            //    }
+            //    catch (System.Exception e)
+            //    {
+            //        Console.WriteLine(e);
+            //    }
+            //}
+            
         }
         public void RemoveStore()
         {
@@ -768,25 +794,6 @@ namespace Office365ExchangeTools
         private static bool Between(DateTime input, DateTime? start, DateTime? end)
         {
             return (input > start && input < end);
-        }
-        private ExportFlag setExportFlag (string flag)
-        {
-            ExportFlag returnFlag = ExportFlag.NotSet;
-
-            switch (flag)
-            {
-                case "E":
-                    returnFlag = ExportFlag.Exclude;
-                    break;
-                case "F":
-                    returnFlag = ExportFlag.Filter;
-                    break;
-                case "":
-                    returnFlag = ExportFlag.All;
-                    break;
-            }
-
-            return returnFlag;
         }
         public string Version
         {
@@ -870,6 +877,28 @@ namespace Office365ExchangeTools
             this.taskItemFlag = ExportFlag.NotSet;
             this.journalItemFlag = ExportFlag.NotSet;
             this.otherItemFlag = ExportFlag.NotSet;
+            this.maxCopyMoveAttempts = 5;
+        }
+
+        public static ExportFlag ReadExportFlag(string flag)
+        {
+            ExportFlag returnFlag = ExportFlag.NotSet;
+
+            switch (flag.ToLower())
+            {
+                case "e":
+                    returnFlag = ExportFlag.Exclude;
+                    break;
+                case "f":
+                    returnFlag = ExportFlag.Filter;
+                    break;
+                case "a":
+                case "":
+                    returnFlag = ExportFlag.All;
+                    break;
+            }
+
+            return returnFlag;
         }
     }
     enum ExportFlag

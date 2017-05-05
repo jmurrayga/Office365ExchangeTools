@@ -1,9 +1,0 @@
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\ExportPSTTool.exe.config
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\ExportPSTTool.csproj.ResolveComReference.cache
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\ExportPSTTool.exe
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\bin\Debug\ExportPSTTool.pdb
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\ExportPSTTool.csprojResolveAssemblyReference.cache
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\Office365ExchangeTools.Properties.Resources.resources
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\ExportPSTTool.csproj.GenerateResource.Cache
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\ExportPSTTool.exe
-C:\Users\JAMUR\documents\visual studio 2015\Projects\Office365ExchangeTools\Office365ExchangeTools\obj\Debug\ExportPSTTool.pdb
